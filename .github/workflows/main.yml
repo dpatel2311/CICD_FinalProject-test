@@ -20,7 +20,8 @@ jobs:
           terraform_version: 1.5.0
  
       - name: Terraform Validate
-        run: terraform validate
+        run: terraform init
+             terraform validate
         working-directory: terraform
  
       - name: Validate Lambda Source
