@@ -1,60 +1,95 @@
-name: Build and Deploy
-
+name: CI/CD Pipeline for Build and Deploy
+ 
 on:
   push:
     branches:
       - main
-
+ 
 jobs:
+  # Source Stage: Integrate with Version Control
+  source:
+    runs-on: ubuntu-latest
+ 
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+ 
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.5.0
+ 
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: terraform
+ 
+      - name: Validate Lambda Source
+        run: npm install && npm run lint
+        working-directory: lambda
+ 
+  # Build Stage: Compile Application and Validate Infrastructure Templates
   build:
     runs-on: ubuntu-latest
-
+    needs: source
+ 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-
-    - name: Set up Node.js
-      uses: actions/setup-node@v2
-      with:
-        node-version: '14'
-
-    - name: Create zip file
-      run: zip -r package.zip handler.js package.json
-      working-directory: lambda
-
-    - name: Upload zip file
-      uses: actions/upload-artifact@v4
-      with:
-        name: package-zip
-        path: lambda/package.zip
-
+      - name: Checkout code
+        uses: actions/checkout@v2
+ 
+      - name: Install dependencies
+        run: npm install
+        working-directory: lambda
+ 
+      - name: Create zip file
+        run: zip -r package.zip handler.js package.json node_modules
+        working-directory: lambda
+ 
+      - name: Upload zip file
+        uses: actions/upload-artifact@v4
+        with:
+          name: lambda-package
+          path: lambda/package.zip
+ 
+      - name: Terraform Plan
+        run: terraform plan
+        working-directory: terraform
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+ 
+  # Deploy Stage: Deploy Application and Infrastructure to AWS
   deploy:
     runs-on: ubuntu-latest
     needs: build
-
+ 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-
-    - name: Download zip file
-      uses: actions/download-artifact@v4
-      with:
-        name: package-zip
-        path: lambda/
-
-    - name: Set up Terraform
-      uses: hashicorp/setup-terraform@v1
-
-    - name: Terraform Init
-      run: terraform init
-      working-directory: terraform
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-    - name: Terraform Apply
-      run: terraform apply -auto-approve
-      working-directory: terraform
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      - name: Checkout code
+        uses: actions/checkout@v2
+ 
+      - name: Download zip file
+        uses: actions/download-artifact@v4
+        with:
+          name: lambda-package
+          path: lambda/
+ 
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.5.0
+ 
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+        working-directory: terraform
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+ 
+      - name: Deploy Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name Function-8934575 \
+            --zip-file fileb://lambda/package.zip \
+            --region us-east-1
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
