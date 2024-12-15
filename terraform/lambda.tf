@@ -1,12 +1,11 @@
 resource "aws_lambda_function" "text_function" {
-  function_name = "Function-8934575"
-  handler       = "handler.handler"
-  runtime       = "nodejs22.x"
+  function_name = var.lambda_function_name
+  handler       = var.lambda_handler
+  runtime       = var.lambda_runtime
   role          = aws_iam_role.lambda_exec.arn
-  //source_code_hash = filebase64sha256("../lambda/package.zip")
-  filename      = "../lambda/package.zip"
+  filename      = var.lambda_package_path
 
-    environment {
+  environment {
     variables = {
       S3_BUCKET = aws_s3_bucket.static_website.bucket
     }
@@ -14,7 +13,7 @@ resource "aws_lambda_function" "text_function" {
 }
 
 resource "aws_iam_role" "lambda_exec" {
-  name = "lambda_exec_role"
+  name = var.lambda_exec_role_name
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"

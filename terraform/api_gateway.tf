@@ -1,8 +1,6 @@
-
-
 resource "aws_api_gateway_rest_api" "api" {
-  name        = "textApi"
-  description = "API for fetching text from Lambda"
+  name        = var.api_name
+  description = var.api_description
 }
 
 resource "aws_api_gateway_resource" "text" {

@@ -1,11 +1,10 @@
 # S3 Bucket
 resource "aws_s3_bucket" "static_website" {
-  bucket = "final-cicd-bucket-8934575"
- 
+  bucket = var.s3_bucket_name
 
   tags = {
-    Name        = "Static Website Bucket"
-    Environment = "Production"
+    Name        = var.s3_bucket_tag_name
+    Environment = var.environment
   }
 }
 
@@ -14,11 +13,11 @@ resource "aws_s3_bucket_website_configuration" "static_website_configuration" {
   bucket = aws_s3_bucket.static_website.id
 
   index_document {
-    suffix = "index.html"
+    suffix = var.index_document_suffix
   }
 
   error_document {
-    key = "index.html"
+    key = var.error_document_key
   }
 }
 
@@ -46,10 +45,10 @@ resource "aws_s3_bucket_policy" "bucket_policy" {
 # S3 Public Access Block Overrides
 resource "aws_s3_bucket_public_access_block" "public_access" {
   bucket                  = aws_s3_bucket.static_website.id
-  block_public_acls       = false
-  block_public_policy     = false
-  ignore_public_acls      = false
-  restrict_public_buckets = false
+  block_public_acls       = var.block_public_acls
+  block_public_policy     = var.block_public_policy
+  ignore_public_acls      = var.ignore_public_acls
+  restrict_public_buckets = var.restrict_public_buckets
 }
 
 # Files to Upload (HTML and CSS)
@@ -81,7 +80,7 @@ data "template_file" "app_js" {
   template = file("${path.module}/../src/app.js.tpl")
 
   vars = {
-    api_gateway_url = "https://${aws_api_gateway_rest_api.api.id}.execute-api.us-east-1.amazonaws.com/prod/text"
+    api_gateway_url = "https://${aws_api_gateway_rest_api.api.id}.execute-api.${var.aws_region}.amazonaws.com/prod/text"
   }
 }
 
