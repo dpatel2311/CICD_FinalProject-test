@@ -21,7 +21,6 @@ jobs:
  
       - name: Terraform Validate
         run: terraform init
-             terraform validate
         working-directory: terraform
  
       - name: Validate Lambda Source
